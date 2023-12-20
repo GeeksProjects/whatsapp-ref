@@ -74,27 +74,69 @@ app.post("/api", (req, res) => {
   res.status(200).send("ok");
 });
 
-app.post("/message", async (req, res) => {
-  const { text } = req.body;
-  await axios.post(
+const send_whatsapp_message = async (body) => {
+  return axios.post(
     `https://graph.facebook.com/v13.0/${process.env.WHATSAPP_PHONE_ID}/messages`,
-    {
-      to: "+201033304427",
-      messaging_product: "whatsapp",
-      text: {
-        body: text,
-      },
-      type: "text",
-    },
+    body,
     {
       headers: {
         Authorization: `Bearer ${process.env.WHATSAPP_API_KEY}`,
       },
     }
   );
-  res.json({
-    status: "succedded",
-  });
+};
+
+app.post("/text_message", async (req, res) => {
+  const { text } = req.body;
+  const body = {
+    to: "+201033304427",
+    messaging_product: "whatsapp",
+    text: {
+      body: text,
+    },
+    type: "text",
+  };
+  return send_whatsapp_message(body)
+    .then((response) => {
+      console.log(response.data);
+      res.status(200).send(response.data);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).send(err);
+    });
+});
+
+app.post("/attachment_message", async (req, res) => {
+  const { message } = req.body;
+  const attachment = message.attachments[0];
+  const type = ["image", "video", "audio"].includes(attachment.file_type)
+    ? attachment.file_type
+    : "document";
+  type_content = {
+    link: attachment.download_url,
+  };
+  if (!["audio", "sticker"].includes(type)) {
+    type_content.caption = attachment.caption;
+  }
+  if (type == "document") {
+    type_content.file_name = attachment.file_name;
+  }
+  body = {
+    messaging_product: "whatsapp",
+    to: "+201033304427",
+    type: type,
+    [type]: type_content,
+  };
+  return send_whatsapp_message(body)
+    .then((response) => {
+      console.log(response.data);
+      res.status(200).send(response.data);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).send(err);
+    });
 });
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
